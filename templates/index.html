@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Sentiment Analysis System</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:    #6c63ff;
+      --primary-d:  #574fd6;
+      --positive:   #22c55e;
+      --negative:   #ef4444;
+      --neutral:    #f59e0b;
+      --bg:         #0f0f1a;
+      --card:       #1a1a2e;
+      --card2:      #16213e;
+      --border:     #2a2a4a;
+      --text:       #e2e8f0;
+      --muted:      #94a3b8;
+      --radius:     14px;
+      --shadow:     0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header-brand { display: flex; align-items: center; gap: 14px; }
+    .header-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--primary), #a855f7);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; }
+    header p  { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+    .status-badge {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 100px; padding: 6px 14px;
+      font-size: 0.8rem; color: var(--positive);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--positive);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    /* ── Nav Tabs ─────────────────────────────────────────────── */
+    nav {
+      display: flex; gap: 4px;
+      background: var(--card2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+    }
+    .tab-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 0.9rem; font-weight: 500;
+      padding: 14px 20px;
+      border-bottom: 3px solid transparent;
+      transition: all .2s; white-space: nowrap;
+    }
+    .tab-btn:hover  { color: var(--text); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* ── Layout ───────────────────────────────────────────────── */
+    main { max-width: 1100px; margin: 0 auto; padding: 36px 24px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Cards ────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+    .card + .card { margin-top: 20px; }
+    .card-title {
+      font-size: 1rem; font-weight: 600;
+      margin-bottom: 18px; color: var(--text);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card-title span { font-size: 1.2em; }
+
+    /* ── Textarea / Form ──────────────────────────────────────── */
+    textarea {
+      width: 100%;
+      background: var(--card2); border: 2px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-size: 1rem; font-family: inherit;
+      padding: 16px; resize: vertical; min-height: 150px;
+      transition: border-color .2s;
+      outline: none;
+    }
+    textarea:focus { border-color: var(--primary); }
+    .char-count {
+      text-align: right; font-size: 0.8rem;
+      color: var(--muted); margin-top: 6px;
+    }
+    .char-count.warn { color: var(--negative); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, var(--primary), #a855f7);
+      color: #fff; border: none; border-radius: 10px;
+      padding: 13px 28px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: opacity .2s, transform .1s;
+    }
+    .btn:hover   { opacity: .9; }
+    .btn:active  { transform: scale(.98); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+    }
+    .btn-sm { padding: 7px 14px; font-size: 0.82rem; border-radius: 8px; }
+
+    .form-actions { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+    .btn-ghost {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); border-radius: 10px;
+      padding: 13px 20px; font-size: 0.9rem; cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ── Result Card ──────────────────────────────────────────── */
+    #result-panel { display: none; margin-top: 24px; }
+
+    .sentiment-banner {
+      border-radius: 10px; padding: 20px 24px;
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 24px;
+    }
+    .sentiment-banner.positive { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35); }
+    .sentiment-banner.negative { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.35); }
+    .sentiment-banner.neutral  { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.35); }
+
+    .sentiment-emoji { font-size: 2.8rem; }
+    .sentiment-info h2 { font-size: 1.4rem; font-weight: 700; }
+    .sentiment-info p  { font-size: 0.88rem; color: var(--muted); margin-top: 2px; }
+
+    .positive-text { color: var(--positive); }
+    .negative-text { color: var(--negative); }
+    .neutral-text  { color: var(--neutral);  }
+
+    /* Score Bars */
+    .score-bars { display: flex; flex-direction: column; gap: 12px; }
+    .score-row { display: flex; align-items: center; gap: 12px; }
+    .score-label { width: 80px; font-size: 0.85rem; font-weight: 500; }
+    .score-bar-wrap {
+      flex: 1; height: 10px; background: var(--border);
+      border-radius: 100px; overflow: hidden;
+    }
+    .score-bar {
+      height: 100%; border-radius: 100px;
+      transition: width 0.8s cubic-bezier(.4,0,.2,1);
+      width: 0%;
+    }
+    .score-bar.positive { background: var(--positive); }
+    .score-bar.negative { background: var(--negative); }
+    .score-bar.neutral  { background: var(--neutral);  }
+    .score-pct { width: 46px; text-align: right; font-size: 0.85rem; font-weight: 600; }
+
+    /* ── Stats Grid ───────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px;
+      text-align: center;
+    }
+    .stat-icon { font-size: 2rem; margin-bottom: 8px; }
+    .stat-num  { font-size: 2rem; font-weight: 700; }
+    .stat-lbl  { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+
+    /* Doughnut-style pie chart (CSS only) */
+    .pie-wrap { display: flex; justify-content: center; margin: 24px 0; }
+    .pie-legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ── History Table ────────────────────────────────────────── */
+    .filter-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    select {
+      background: var(--card2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 8px 12px;
+      font-size: 0.88rem; cursor: pointer; outline: none;
+    }
+    select:focus { border-color: var(--primary); }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th {
+      background: var(--card2); color: var(--muted);
+      font-weight: 600; text-transform: uppercase; font-size: 0.75rem;
+      letter-spacing: .05em; padding: 12px 14px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(108,99,255,0.05); }
+
+    .badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 100px; font-size: 0.78rem; font-weight: 600;
+    }
+    .badge.positive { background: rgba(34,197,94,0.2);  color: var(--positive); }
+    .badge.negative { background: rgba(239,68,68,0.2);  color: var(--negative); }
+    .badge.neutral  { background: rgba(245,158,11,0.2); color: var(--neutral);  }
+
+    .text-cell { max-width: 320px; word-break: break-word; color: var(--muted); }
+
+    .pagination { display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+    .page-btn {
+      background: var(--card2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 7px 14px;
+      cursor: pointer; font-size: 0.85rem; transition: all .2s;
+    }
+    .page-btn:hover   { border-color: var(--primary); color: var(--primary); }
+    .page-btn.active  { background: var(--primary); border-color: var(--primary); }
+    .page-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .page-info { color: var(--muted); font-size: 0.85rem; margin-left: 4px; }
+
+    /* ── Empty / Error / Loader ───────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 48px 20px;
+      color: var(--muted);
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+
+    .error-msg {
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5; border-radius: 10px; padding: 14px 18px;
+      font-size: 0.9rem; margin-top: 12px; display: none;
+    }
+
+    .spinner {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      animation: spin .7s linear infinite; display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: #1e293b; border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 20px;
+      display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      transform: translateY(80px); opacity: 0;
+      transition: all .35s cubic-bezier(.4,0,.2,1);
+      z-index: 1000; font-size: 0.9rem; max-width: 340px;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── SVG Donut ────────────────────────────────────────────── */
+    .donut-svg { overflow: visible; }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      header { padding: 16px 20px; }
+      nav    { padding: 0 16px; }
+      main   { padding: 20px 14px; }
+      .card  { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ HEADER ═══ -->
+<header>
+  <div class="header-brand">
+    <div class="header-icon">🧠</div>
+    <div>
+      <h1>Smart Sentiment Analysis</h1>
+      <p>ML-powered text emotion classifier · Django + MySQL</p>
+    </div>
+  </div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    <span id="api-status">Connecting…</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════ NAV TABS ══ -->
+<nav>
+  <button class="tab-btn active" onclick="switchTab('analyze',this)">🔍 Analyse</button>
+  <button class="tab-btn"        onclick="switchTab('dashboard',this)">📊 Dashboard</button>
+  <button class="tab-btn"        onclick="switchTab('history',this)">🕘 History</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════ MAIN ══════ -->
+<main>
+
+  <!-- ── TAB 1 : ANALYSE ────────────────────────────────────── -->
+  <div id="tab-analyze" class="tab-panel active">
+
+    <div class="card">
+      <div class="card-title"><span>✍️</span> Enter Text for Analysis</div>
+
+      <textarea id="input-text" placeholder="Type or paste any text here…&#10;&#10;Examples:&#10;• I absolutely loved the experience!&#10;• The service was terrible and disappointing.&#10;• The package arrived on time."
+                oninput="onTextInput()" maxlength="5000"></textarea>
+      <div class="char-count" id="char-count">0 / 5000</div>
+
+      <div id="input-error" class="error-msg"></div>
+
+      <div class="form-actions">
+        <button class="btn" id="analyze-btn" onclick="analyzeText()">
+          <span id="btn-icon">🔍</span>
+          <span id="btn-text">Analyse Sentiment</span>
+          <div class="spinner" id="btn-spinner"></div>
+        </button>
+        <button class="btn-ghost" onclick="clearInput()">Clear</button>
+        <button class="btn-ghost" onclick="loadSample()">Load Sample</button>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-panel">
+      <div class="card">
+        <div class="card-title"><span>📋</span> Analysis Result</div>
+
+        <div id="sentiment-banner" class="sentiment-banner">
+          <div class="sentiment-emoji" id="result-emoji">😐</div>
+          <div class="sentiment-info">
+            <h2 id="result-label">—</h2>
+            <p id="result-confidence">Confidence: —</p>
+          </div>
+        </div>
+
+        <div class="card-title" style="margin-bottom:14px;"><span>📊</span> Probability Breakdown</div>
+        <div class="score-bars">
+          <div class="score-row">
+            <div class="score-label positive-text">Positive</div>
+            <div class="score-bar-wrap"><div class="score-bar positive" id="bar-pos"></div></div>
+            <div class="score-pct positive-text" id="pct-pos">0%</div>
+          </div>
+          <div class="score-row">
+            <div class="score-label negative-text">Negative</div>
+            <div class="score-bar-wrap"><div class="score-bar negative" id="bar-neg"></div></div>
+            <div class="score-pct negative-text" id="pct-neg">0%</div>
+          </div>
+          <div class="score-row">
+            <div class="score-label neutral-text">Neutral</div>
+            <div class="score-bar-wrap"><div class="score-bar neutral" id="bar-neu"></div></div>
+            <div class="score-pct neutral-text" id="pct-neu">0%</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; font-size:0.82rem; color:var(--muted);">
+          Saved to database · ID: <span id="result-id" style="color:var(--primary); font-weight:600;">—</span>
+          &nbsp;·&nbsp; <span id="result-time">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 2 : DASHBOARD ──────────────────────────────────── -->
+  <div id="tab-dashboard" class="tab-panel">
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📝</div>
+        <div class="stat-num" id="stat-total">—</div>
+        <div class="stat-lbl">Total Analyses</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">😊</div>
+        <div class="stat-num positive-text" id="stat-pos">—</div>
+        <div class="stat-lbl">Positive</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">😞</div>
+        <div class="stat-num negative-text" id="stat-neg">—</div>
+        <div class="stat-lbl">Negative</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">😐</div>
+        <div class="stat-num neutral-text" id="stat-neu">—</div>
+        <div class="stat-lbl">Neutral</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>🥧</span> Sentiment Distribution</div>
+      <div class="pie-wrap">
+        <svg class="donut-svg" width="220" height="220" viewBox="0 0 220 220">
+          <circle cx="110" cy="110" r="80" fill="none" stroke="#2a2a4a" stroke-width="36"/>
+          <circle id="donut-pos" cx="110" cy="110" r="80" fill="none"
+                  stroke="#22c55e" stroke-width="36"
+                  stroke-dasharray="0 503"
+                  stroke-dashoffset="0"
+                  transform="rotate(-90 110 110)"
+                  style="transition: stroke-dasharray 1s ease"/>
+          <circle id="donut-neg" cx="110" cy="110" r="80" fill="none"
+                  stroke="#ef4444" stroke-width="36"
+                  stroke-dasharray="0 503"
+                  stroke-dashoffset="0"
+                  transform="rotate(-90 110 110)"
+                  style="transition: stroke-dasharray 1s ease"/>
+          <circle id="donut-neu" cx="110" cy="110" r="80" fill="none"
+                  stroke="#f59e0b" stroke-width="36"
+                  stroke-dasharray="0 503"
+                  stroke-dashoffset="0"
+                  transform="rotate(-90 110 110)"
+                  style="transition: stroke-dasharray 1s ease"/>
+          <text x="110" y="105" text-anchor="middle" fill="#e2e8f0"
+                font-size="14" font-family="Segoe UI, sans-serif" font-weight="600"
+                id="donut-label">—</text>
+          <text x="110" y="124" text-anchor="middle" fill="#94a3b8"
+                font-size="11" font-family="Segoe UI, sans-serif">analyses</text>
+        </svg>
+      </div>
+      <div class="pie-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--positive)"></div><span id="leg-pos">Positive 0%</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--negative)"></div><span id="leg-neg">Negative 0%</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--neutral)"></div><span id="leg-neu">Neutral 0%</span></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title"><span>🕘</span> Recent Analyses</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Text</th><th>Sentiment</th><th>Confidence</th><th>Time</th></tr></thead>
+          <tbody id="recent-body">
+            <tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📭</div>No data yet</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;">
+        <button class="btn-ghost" onclick="loadStats()">↻ Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 3 : HISTORY ────────────────────────────────────── -->
+  <div id="tab-history" class="tab-panel">
+    <div class="card">
+      <div class="card-title"><span>🕘</span> Analysis History</div>
+
+      <div class="filter-row">
+        <select id="filter-sentiment" onchange="loadHistory(1)">
+          <option value="">All Sentiments</option>
+          <option value="positive">Positive</option>
+          <option value="negative">Negative</option>
+          <option value="neutral">Neutral</option>
+        </select>
+        <select id="filter-limit" onchange="loadHistory(1)">
+          <option value="10">10 per page</option>
+          <option value="20">20 per page</option>
+          <option value="50">50 per page</option>
+        </select>
+        <button class="btn-ghost" onclick="loadHistory(1)">↻ Refresh</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Text</th>
+              <th>Sentiment</th>
+              <th>Confidence</th>
+              <th>Positive</th>
+              <th>Negative</th>
+              <th>Neutral</th>
+              <th>Date &amp; Time</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📭</div>Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════ TOAST ═════ -->
+<div id="toast">
+  <span id="toast-icon">✅</span>
+  <span id="toast-msg">Done!</span>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ SCRIPT ════ -->
+<script>
+const API = '/api';
+let histPage = 1;
+
+// ── Helpers ──────────────────────────────────────────────────
+function showToast(msg, icon = '✅') {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-msg').textContent  = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function sentimentBadge(s) {
+  const map = { positive: '😊 Positive', negative: '😞 Negative', neutral: '😐 Neutral' };
+  return `<span class="badge ${s}">${map[s] || s}</span>`;
+}
+
+// ── Tab Switch ────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'dashboard') loadStats();
+  if (name === 'history')   loadHistory(1);
+}
+
+// ── Input Handling ────────────────────────────────────────────
+function onTextInput() {
+  const len = document.getElementById('input-text').value.length;
+  const cc  = document.getElementById('char-count');
+  cc.textContent = `${len} / 5000`;
+  cc.classList.toggle('warn', len > 4500);
+}
+
+function clearInput() {
+  document.getElementById('input-text').value = '';
+  document.getElementById('char-count').textContent = '0 / 5000';
+  document.getElementById('result-panel').style.display = 'none';
+  document.getElementById('input-error').style.display  = 'none';
+}
+
+const SAMPLES = [
+  "I absolutely loved the product! It exceeded my expectations and the delivery was super fast. Highly recommend!",
+  "This was a terrible experience. The service was rude and the quality was awful. I want my money back.",
+  "The item arrived as described. Packaging was fine and delivery took the expected time. Nothing special.",
+  "Amazing! The best coffee I have had in years. The barista was so friendly and the ambiance was perfect.",
+  "Disappointing experience. The app kept crashing and customer support never responded to my tickets.",
+];
+let sampleIdx = 0;
+function loadSample() {
+  document.getElementById('input-text').value = SAMPLES[sampleIdx % SAMPLES.length];
+  sampleIdx++;
+  onTextInput();
+}
+
+// ── Analyse ───────────────────────────────────────────────────
+async function analyzeText() {
+  const text = document.getElementById('input-text').value.trim();
+  const errEl = document.getElementById('input-error');
+  errEl.style.display = 'none';
+
+  if (!text) {
+    errEl.textContent = '⚠️ Please enter some text to analyse.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (text.length < 3) {
+    errEl.textContent = '⚠️ Text must be at least 3 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Loading state
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  document.getElementById('btn-icon').style.display    = 'none';
+  document.getElementById('btn-text').textContent      = 'Analysing…';
+  document.getElementById('btn-spinner').style.display = 'inline-block';
+
+  try {
+    const res  = await fetch(`${API}/predict/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      const msg = data.error?.text?.[0] || data.error || 'An error occurred.';
+      errEl.textContent = '❌ ' + msg;
+      errEl.style.display = 'block';
+      return;
+    }
+
+    showResult(data);
+    showToast('Sentiment analysed and saved!', '✅');
+
+  } catch (err) {
+    errEl.textContent = '❌ Network error. Is the Django server running?';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    document.getElementById('btn-icon').style.display    = '';
+    document.getElementById('btn-text').textContent      = 'Analyse Sentiment';
+    document.getElementById('btn-spinner').style.display = 'none';
+  }
+}
+
+function showResult(data) {
+  const sentiment  = data.sentiment;
+  const confidence = data.confidence;
+
+  // Banner
+  const banner = document.getElementById('sentiment-banner');
+  banner.className = `sentiment-banner ${sentiment}`;
+
+  const emojiMap = { positive: '😊', negative: '😞', neutral: '😐' };
+  document.getElementById('result-emoji').textContent      = emojiMap[sentiment] || '🤔';
+  document.getElementById('result-label').textContent      = sentiment.charAt(0).toUpperCase() + sentiment.slice(1);
+  document.getElementById('result-label').className        = `${sentiment}-text`;
+  document.getElementById('result-confidence').textContent = `Confidence: ${confidence.toFixed(1)}%`;
+
+  // Bars (delayed for animation)
+  setTimeout(() => {
+    setBar('pos', data.positive_score);
+    setBar('neg', data.negative_score);
+    setBar('neu', data.neutral_score);
+  }, 80);
+
+  document.getElementById('result-id').textContent   = '#' + data.id;
+  document.getElementById('result-time').textContent = fmtDate(data.created_at);
+
+  document.getElementById('result-panel').style.display = 'block';
+  document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function setBar(key, val) {
+  document.getElementById('bar-' + key).style.width     = val + '%';
+  document.getElementById('pct-' + key).textContent     = val.toFixed(1) + '%';
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const res  = await fetch(`${API}/stats/`);
+    const data = await res.json();
+
+    document.getElementById('stat-total').textContent = data.total;
+    document.getElementById('stat-pos').textContent   = data.positive_count;
+    document.getElementById('stat-neg').textContent   = data.negative_count;
+    document.getElementById('stat-neu').textContent   = data.neutral_count;
+
+    document.getElementById('leg-pos').textContent = `Positive ${data.positive_percent}%`;
+    document.getElementById('leg-neg').textContent = `Negative ${data.negative_percent}%`;
+    document.getElementById('leg-neu').textContent = `Neutral ${data.neutral_percent}%`;
+
+    drawDonut(data);
+    renderRecentTable(data.recent_analyses || []);
+
+  } catch (e) {
+    console.error('Stats error:', e);
+  }
+}
+
+function drawDonut(data) {
+  const circ = 2 * Math.PI * 80;  // ≈ 502.65
+  const total = data.total || 0;
+  document.getElementById('donut-label').textContent = total;
+
+  if (total === 0) return;
+
+  const posLen = (data.positive_percent / 100) * circ;
+  const negLen = (data.negative_percent / 100) * circ;
+  const neuLen = circ - posLen - negLen;
+
+  // Positive arc starts at 0 (top because of rotate-90 on the SVG circle)
+  document.getElementById('donut-pos').setAttribute('stroke-dasharray', `${posLen} ${circ - posLen}`);
+  document.getElementById('donut-pos').setAttribute('stroke-dashoffset', '0');
+
+  // Negative arc starts after positive
+  document.getElementById('donut-neg').setAttribute('stroke-dasharray', `${negLen} ${circ - negLen}`);
+  document.getElementById('donut-neg').setAttribute('stroke-dashoffset', -posLen);
+
+  // Neutral arc starts after positive + negative
+  document.getElementById('donut-neu').setAttribute('stroke-dasharray', `${neuLen} ${circ - neuLen}`);
+  document.getElementById('donut-neu').setAttribute('stroke-dashoffset', -(posLen + negLen));
+}
+
+function renderRecentTable(rows) {
+  const tbody = document.getElementById('recent-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📭</div>No analyses yet</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr>
+      <td style="color:var(--muted)">${i + 1}</td>
+      <td class="text-cell">${escHtml(r.text.slice(0, 100))}${r.text.length > 100 ? '…' : ''}</td>
+      <td>${sentimentBadge(r.sentiment)}</td>
+      <td style="font-weight:600">${r.confidence.toFixed(1)}%</td>
+      <td style="color:var(--muted);white-space:nowrap">${fmtDate(r.created_at)}</td>
+    </tr>
+  `).join('');
+}
+
+// ── History ───────────────────────────────────────────────────
+async function loadHistory(page) {
+  histPage = page;
+  const sentiment = document.getElementById('filter-sentiment').value;
+  const limit     = document.getElementById('filter-limit').value;
+
+  let url = `${API}/history/?page=${page}&limit=${limit}`;
+  if (sentiment) url += `&sentiment=${sentiment}`;
+
+  try {
+    const res  = await fetch(url);
+    const data = await res.json();
+    renderHistoryTable(data.results || []);
+    renderPagination(data.page, data.pages, data.total);
+  } catch (e) {
+    document.getElementById('history-body').innerHTML =
+      '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">⚠️</div>Failed to load. Is the server running?</div></td></tr>';
+  }
+}
+
+function renderHistoryTable(rows) {
+  const tbody = document.getElementById('history-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📭</div>No records found</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="color:var(--muted)">${r.id}</td>
+      <td class="text-cell">${escHtml(r.text.slice(0, 120))}${r.text.length > 120 ? '…' : ''}</td>
+      <td>${sentimentBadge(r.sentiment)}</td>
+      <td style="font-weight:600">${r.confidence.toFixed(1)}%</td>
+      <td class="positive-text">${r.positive_score.toFixed(1)}%</td>
+      <td class="negative-text">${r.negative_score.toFixed(1)}%</td>
+      <td class="neutral-text">${r.neutral_score.toFixed(1)}%</td>
+      <td style="color:var(--muted);white-space:nowrap">${fmtDate(r.created_at)}</td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteRecord(${r.id})">🗑 Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderPagination(page, pages, total) {
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML = `<span class="page-info">${total} record${total !== 1 ? 's' : ''}</span>`; return; }
+
+  let html = `<button class="page-btn" onclick="loadHistory(${page - 1})" ${page <= 1 ? 'disabled' : ''}>‹ Prev</button>`;
+  for (let i = 1; i <= pages; i++) {
+    if (i === 1 || i === pages || Math.abs(i - page) <= 2)
+      html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="loadHistory(${i})">${i}</button>`;
+    else if (Math.abs(i - page) === 3)
+      html += `<span class="page-info">…</span>`;
+  }
+  html += `<button class="page-btn" onclick="loadHistory(${page + 1})" ${page >= pages ? 'disabled' : ''}>Next ›</button>`;
+  html += `<span class="page-info">${total} total</span>`;
+  el.innerHTML = html;
+}
+
+async function deleteRecord(id) {
+  if (!confirm(`Delete record #${id}?`)) return;
+  try {
+    const res = await fetch(`${API}/history/${id}/`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast(`Record #${id} deleted`, '🗑️');
+      loadHistory(histPage);
+    } else {
+      showToast('Delete failed', '❌');
+    }
+  } catch (e) {
+    showToast('Network error', '❌');
+  }
+}
+
+// ── Health Check ──────────────────────────────────────────────
+async function checkHealth() {
+  const el = document.getElementById('api-status');
+  try {
+    const res  = await fetch(`${API}/health/`);
+    const data = await res.json();
+    if (data.status === 'ok' && data.model_loaded) {
+      el.textContent = 'API Online · Model Ready';
+    } else if (data.status === 'ok') {
+      el.textContent = 'API Online · Model Missing';
+    } else {
+      el.textContent = 'API Error';
+    }
+  } catch {
+    el.textContent = 'API Offline';
+    document.querySelector('.status-dot').style.background = '#ef4444';
+    document.querySelector('.status-badge').style.background = 'rgba(239,68,68,0.12)';
+    document.querySelector('.status-badge').style.borderColor = 'rgba(239,68,68,0.3)';
+    document.querySelector('.status-badge').style.color = '#ef4444';
+  }
+}
+
+// ── XSS Escape ────────────────────────────────────────────────
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Keyboard shortcut (Ctrl+Enter) ───────────────────────────
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analyzeText();
+});
+
+// ── Init ──────────────────────────────────────────────────────
+checkHealth();
+setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>
